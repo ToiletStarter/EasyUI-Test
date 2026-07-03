@@ -132,6 +132,7 @@ local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
 local HttpService = game:GetService("HttpService")
+local StatsService = game:GetService("Stats")
 local LocalPlayer = Players.LocalPlayer
 
 -- ── Helpers ──────────────────────────────────────────────
@@ -209,12 +210,13 @@ end
 local Panel = {}
 Panel.__index = Panel
 
-function Panel:_init(ui, title, width)
+function Panel:_init(ui, title, width, maxHeight)
     self._ui = ui
     self._theme = ui._theme
 
     local theme = self._theme
     local x, y = ui:_nextPanelPos(width)
+    maxHeight = maxHeight or (ui._config and ui._config.PanelMaxHeight) or 420
 
     local frame = mk("Frame", {
         Position = UDim2.fromOffset(x, y - 30),
@@ -266,7 +268,7 @@ function Panel:_init(ui, title, width)
     corner(5, dot)
 
     -- Pulse animation on dot
-    spawn(function()
+    task.spawn(function()
         while dot.Parent do
             tween(dot, 1.2, { Size = UDim2.fromOffset(11, 11) }, Enum.EasingStyle.Sine)
             task.wait(1.2)
@@ -299,27 +301,41 @@ function Panel:_init(ui, title, width)
         ZIndex = 100012,
     }, header)
 
-    local body = mk("Frame", {
+    -- ── FIXED: body is now a height-capped ScrollingFrame instead of an
+    -- unbounded AutomaticSize frame. This is what was causing panels to
+    -- stretch into full-screen vertical bars once enough widgets were added.
+    local body = mk("ScrollingFrame", {
         Size = UDim2.new(1, 0, 0, 0),
-        AutomaticSize = Enum.AutomaticSize.Y,
         BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+        ScrollingDirection = Enum.ScrollingDirection.Y,
+        ScrollBarThickness = 3,
+        ScrollBarImageColor3 = theme.accent,
+        ScrollBarImageTransparency = 0.4,
+        CanvasSize = UDim2.new(0, 0, 0, 0),
+        AutomaticCanvasSize = Enum.AutomaticCanvasSize.Y,
+        ClipsDescendants = true,
         LayoutOrder = 2,
         ZIndex = 100011,
     }, frame)
-    mk("UIListLayout", {
+    local bodyLayout = mk("UIListLayout", {
         SortOrder = Enum.SortOrder.LayoutOrder,
         Padding = UDim.new(0, 3),
     }, body)
     padding(6, 8, 8, 8, body)
+
+    local function refreshBodyHeight()
+        local contentHeight = bodyLayout.AbsoluteContentSize.Y + 14 -- top(6)+bottom(8) padding
+        body.Size = UDim2.new(1, 0, 0, math.clamp(contentHeight, 0, maxHeight))
+    end
+    bodyLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(refreshBodyHeight)
+    task.defer(refreshBodyHeight)
 
     local open = true
     collapse.MouseButton1Click:Connect(function()
         open = not open
         body.Visible = open
         collapse.Text = open and "–" or "+"
-        if open then
-            smooth(body, 0.25, { BackgroundTransparency = 1 })
-        end
     end)
     collapse.MouseEnter:Connect(function() tween(collapse, 0.15, { TextColor3 = theme.accent }) end)
     collapse.MouseLeave:Connect(function() tween(collapse, 0.15, { TextColor3 = theme.muted }) end)
@@ -333,6 +349,8 @@ function Panel:_init(ui, title, width)
     self._open = true
     self._dot = dot
     self._glass = glass
+    self._maxHeight = maxHeight
+    self._refreshBodyHeight = refreshBodyHeight
 
     -- Glassmorphism fluid load-in animation
     frame.BackgroundTransparency = 1
@@ -340,6 +358,11 @@ function Panel:_init(ui, title, width)
     smooth(frame, 0.35, { Position = UDim2.fromOffset(x, y), BackgroundTransparency = theme.panelTrans + 0.15 })
 
     return self
+end
+
+function Panel:SetMaxHeight(px)
+    self._maxHeight = px
+    if self._refreshBodyHeight then self._refreshBodyHeight() end
 end
 
 function Panel:SetTitle(title)
@@ -500,7 +523,6 @@ function Panel:AddToggle(label, default, callback)
         widget.value = enabled
         refresh()
 
-        -- Ripple effect
         ripple.Size = UDim2.fromOffset(0, 0)
         ripple.BackgroundTransparency = 0.5
         tween(ripple, 0.4, { Size = UDim2.fromOffset(30, 30), BackgroundTransparency = 1 }, Enum.EasingStyle.Quint)
@@ -608,7 +630,6 @@ function Panel:AddSlider(label, min, max, default, rounding, callback)
     corner(6, knob)
     stroke(theme.accentDim, 1, 0, knob)
 
-    -- Glow effect on knob
     local glow = mk("Frame", {
         Size = UDim2.fromOffset(20, 20),
         AnchorPoint = Vector2.new(0.5, 0.5),
@@ -651,7 +672,6 @@ function Panel:AddSlider(label, min, max, default, rounding, callback)
         return min + math.clamp((px - track.AbsolutePosition.X) / track.AbsoluteSize.X, 0, 1) * (max - min)
     end
 
-    -- Better dragging on track AND knob
     track.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
             dragging = true
@@ -680,7 +700,6 @@ function Panel:AddSlider(label, min, max, default, rounding, callback)
         end
     end)
 
-    -- Mouse wheel support
     track.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseWheel then
             local step = (max - min) / 50
@@ -696,7 +715,7 @@ function Panel:AddSlider(label, min, max, default, rounding, callback)
     return widget
 end
 
--- ── Mode Toggle (Slider that snaps between discrete modes) ──
+-- ── Mode Toggle ──────────────────────────────────────────
 function Panel:AddModeToggle(label, modes, defaultIndex, callback)
     local theme = self._theme
     defaultIndex = defaultIndex or 1
@@ -726,7 +745,6 @@ function Panel:AddModeToggle(label, modes, defaultIndex, callback)
 
     local segmentWidth = 1 / #modes
 
-    -- Segment dividers
     for i = 2, #modes do
         mk("Frame", {
             Size = UDim2.new(0, 1, 0, 14),
@@ -747,7 +765,6 @@ function Panel:AddModeToggle(label, modes, defaultIndex, callback)
     }, track)
     corner(11, fill)
 
-    -- Mode labels
     local modeLabels = {}
     for i, modeName in ipairs(modes) do
         local lbl = mk("TextLabel", {
@@ -973,7 +990,6 @@ function Panel:AddButton(label, callback, danger)
         if s then tween(s, 0.15, { Color = theme.border }) end
     end)
     button.MouseButton1Click:Connect(function()
-        -- Click animation
         tween(button, 0.05, { Size = UDim2.new(0.97, 0, 0, 23) })
         task.wait(0.05)
         tween(button, 0.1, { Size = UDim2.new(1, 0, 0, 25) }, Enum.EasingStyle.Back)
@@ -986,7 +1002,7 @@ function Panel:AddButton(label, callback, danger)
     return widget
 end
 
--- ── Improved Color Picker with dotted crosshair ─────────
+-- ── Color Picker ─────────────────────────────────────────
 function Panel:AddColorPicker(label, defaultColor, callback)
     local theme = self._theme
     defaultColor = defaultColor or theme.white
@@ -1032,7 +1048,6 @@ function Panel:AddColorPicker(label, defaultColor, callback)
     }, row)
     corner(3, hexBox)
 
-    -- Picker popup
     local picker = mk("Frame", {
         Size = UDim2.fromOffset(160, 116),
         Position = UDim2.new(1, 10, 0, 0),
@@ -1055,7 +1070,6 @@ function Panel:AddColorPicker(label, defaultColor, callback)
         if callback then callback(color) end
     end
 
-    -- SV Grid
     local grid = mk("Frame", {
         Size = UDim2.fromOffset(144, 62),
         BackgroundColor3 = Color3.fromHSV(hue, 1, 1),
@@ -1086,7 +1100,6 @@ function Panel:AddColorPicker(label, defaultColor, callback)
         Rotation = 90,
     }, shade)
 
-    -- Dotted crosshair on grid
     local crosshairH = mk("Frame", {
         Size = UDim2.new(1, 0, 0, 1),
         Position = UDim2.fromScale(0.5, 0.5),
@@ -1095,10 +1108,6 @@ function Panel:AddColorPicker(label, defaultColor, callback)
         BorderSizePixel = 0,
         ZIndex = 100060,
     }, grid)
-
-    crosshairH.BackgroundColor3 = theme.white
-    local dashPattern = "---  ---  ---  ---  ---  ---  ---  ---  ---  ---  ---  ---  ---  ---  ---  ---"
-    -- Simulate dashes with alternating frames
     crosshairH.Visible = false
 
     local crosshairV = mk("Frame", {
@@ -1111,7 +1120,6 @@ function Panel:AddColorPicker(label, defaultColor, callback)
     }, grid)
     crosshairV.Visible = false
 
-    -- Crosshair dot in center
     local crosshairDot = mk("Frame", {
         Size = UDim2.fromOffset(5, 5),
         AnchorPoint = Vector2.new(0.5, 0.5),
@@ -1124,7 +1132,6 @@ function Panel:AddColorPicker(label, defaultColor, callback)
     stroke(theme.black, 1, 0, crosshairDot)
     crosshairDot.Visible = false
 
-    -- Magnified preview dot near picker
     local preview = mk("Frame", {
         Size = UDim2.fromOffset(18, 18),
         Position = UDim2.new(0, 148, 0, 0),
@@ -1135,7 +1142,6 @@ function Panel:AddColorPicker(label, defaultColor, callback)
     corner(9, preview)
     stroke(theme.white, 2, 0, preview)
 
-    -- Hue bar
     local hueBar = mk("Frame", {
         Size = UDim2.fromOffset(144, 14),
         Position = UDim2.fromOffset(0, 69),
@@ -1156,7 +1162,6 @@ function Panel:AddColorPicker(label, defaultColor, callback)
         }),
     }, hueBar)
 
-    -- Hue indicator dot
     local hueDot = mk("Frame", {
         Size = UDim2.fromOffset(8, 16),
         AnchorPoint = Vector2.new(0.5, 0.5),
@@ -1173,7 +1178,6 @@ function Panel:AddColorPicker(label, defaultColor, callback)
         sat = math.clamp((pos.X - grid.AbsolutePosition.X) / grid.AbsoluteSize.X, 0, 1)
         val = 1 - math.clamp((pos.Y - grid.AbsolutePosition.Y) / grid.AbsoluteSize.Y, 0, 1)
 
-        -- Update crosshair position
         local cx = sat
         local cy = 1 - val
         crosshairH.Position = UDim2.new(0, 0, cy, 0)
@@ -1407,15 +1411,12 @@ function Panel:AddTextBox(label, default, placeholder, callback)
         if s then tween(s, 0.12, { Color = theme.accent }) end
     end)
 
+    local widget = { type = "textbox", value = default or "" }
+
     box.FocusLost:Connect(function(enter)
         tween(box, 0.12, { BackgroundTransparency = 0.4 })
         local s = box:FindFirstChildOfClass("UIStroke")
         if s then tween(s, 0.12, { Color = theme.border }) end
-    end)
-
-    local widget = { type = "textbox", value = default or "" }
-
-    box.FocusLost:Connect(function(enter)
         widget.value = box.Text
         if callback then callback(box.Text, enter) end
     end)
@@ -1478,7 +1479,6 @@ function Panel:AddProgressBar(label, initial, callback)
     }, track)
     corner(3, fill)
 
-    -- Progress glow
     local glow = mk("Frame", {
         Size = UDim2.fromScale(0, 1),
         AnchorPoint = Vector2.new(0, 0),
@@ -1515,6 +1515,14 @@ EasyUI.__index = EasyUI
 
 local activeInstances = {}
 
+-- Global defaults exposed for easy backend tweaking
+EasyUI.Defaults = {
+    PanelMaxHeight = 420,
+    CursorSize = 20,
+    WatermarkSeparator = "  •  ",
+    WatermarkUpdateInterval = 0.5,
+}
+
 function EasyUI.new(options)
     options = options or {}
     local self = setmetatable({}, EasyUI)
@@ -1549,7 +1557,24 @@ function EasyUI.new(options)
     self._alive = true
     self._nextX, self._nextY = 16, 52
     self._configOpen = false
-    self._cursorEnabled = options.CustomCursor ~= false
+
+    -- ── Backend-configurable settings ───────────────────
+    local cursorOpts = options.Cursor or {}
+    local wmOpts = options.WatermarkConfig or {}
+    self._config = {
+        PanelMaxHeight = options.PanelMaxHeight or EasyUI.Defaults.PanelMaxHeight,
+        Cursor = {
+            Enabled = (cursorOpts.Enabled ~= nil) and cursorOpts.Enabled or (options.CustomCursor ~= false),
+            Color = cursorOpts.Color or theme.text,
+            OutlineColor = cursorOpts.OutlineColor or theme.black,
+            Size = cursorOpts.Size or EasyUI.Defaults.CursorSize,
+        },
+        Watermark = {
+            Separator = wmOpts.Separator or EasyUI.Defaults.WatermarkSeparator,
+            UpdateInterval = wmOpts.UpdateInterval or EasyUI.Defaults.WatermarkUpdateInterval,
+        },
+    }
+    self._cursorEnabled = self._config.Cursor.Enabled
 
     local host = getHost()
     local id = options.Id or ("EasyUI_" .. (tostring(os.clock()):gsub("%.", "_")))
@@ -1578,6 +1603,7 @@ function EasyUI.new(options)
     self._root = root
 
     self:_buildWatermark(options.Watermark ~= false)
+    self:_setupStats(options)
     self:_buildToasts()
     self:_buildUnloadButton()
     self:_buildCustomCursor()
@@ -1591,7 +1617,6 @@ function EasyUI.new(options)
             if visible then
                 root.Position = UDim2.fromOffset(0, -20)
                 smooth(root, 0.3, { Position = UDim2.fromOffset(0, 0) })
-                -- Glassmorphism flash
                 self:_playGlassFlash()
             else
                 self:_updateCursor(false)
@@ -1609,34 +1634,60 @@ function EasyUI.new(options)
         end
     end)
 
+    -- ── Single combined render loop: fps tracking, cursor follow, watermark text ──
+    local wmTimer = 0
     RunService.RenderStepped:Connect(function(dt)
         if not self._alive then return end
 
-        -- Update custom cursor position
+        -- FPS tracking
+        self._fpsAccum += dt
+        self._fpsCount += 1
+        if self._fpsAccum >= 0.4 then
+            self._fps = math.floor(self._fpsCount / self._fpsAccum + 0.5)
+            self._fpsAccum, self._fpsCount = 0, 0
+        end
+
+        -- Custom cursor: exact 1:1 tracking, no lag/wobble (feels like a real cursor)
         if self._cursor and self._cursor.Visible then
             local mousePos = UserInputService:GetMouseLocation()
             self._cursor.Position = UDim2.fromOffset(mousePos.X, mousePos.Y)
-            -- Subtle idle animation
-            self._cursor.Rotation = math.sin(os.clock() * 2) * 3
         end
 
-        -- Watermark
-        if self._watermarkFn and self._watermarkLabel then
-            local data = self._watermarkFn() or {}
-            local parts = { self._title }
-            if data.fps then parts[#parts + 1] = tostring(data.fps) .. "fps" end
-            for k, v in pairs(data) do
-                if k ~= "fps" then
-                    parts[#parts + 1] = tostring(k) .. ": " .. tostring(v)
+        -- Watermark dot color cycle
+        if self._watermarkDot and self._watermark and self._watermark.Visible then
+            self._watermarkDot.BackgroundColor3 = Color3.fromHSV((os.clock() * 0.12) % 1, 0.6, 1)
+        end
+
+        -- Watermark text (throttled)
+        if self._watermarkLabel and self._watermark and self._watermark.Visible then
+            wmTimer += dt
+            if wmTimer >= (self._config.Watermark.UpdateInterval or 0.5) then
+                wmTimer = 0
+                local parts = { self._title }
+                for _, s in ipairs(self._statProviders) do
+                    if s.enabled then
+                        local ok, v = pcall(s.get)
+                        if ok and v ~= nil then
+                            local fok, formatted = pcall(s.format, v)
+                            parts[#parts + 1] = fok and formatted or tostring(v)
+                        end
+                    end
                 end
+                if self._watermarkFn then
+                    local ok, data = pcall(self._watermarkFn)
+                    if ok and type(data) == "table" then
+                        for k, v in pairs(data) do
+                            parts[#parts + 1] = tostring(k) .. ": " .. tostring(v)
+                        end
+                    end
+                end
+                self._watermarkLabel.Text = table.concat(parts, self._config.Watermark.Separator)
             end
-            self._watermarkLabel.Text = table.concat(parts, "  •  ")
         end
     end)
 
     activeInstances[#activeInstances + 1] = self
 
-    -- Initial glassmorphism load animation
     root.Visible = true
     root.Position = UDim2.fromOffset(0, -20)
     smooth(root, 0.35, { Position = UDim2.fromOffset(0, 0) })
@@ -1691,11 +1742,15 @@ function EasyUI:_trackInput(fn) table.insert(self._inputHandlers, fn) end
 function EasyUI:_trackInputEnded(fn) table.insert(self._inputEndHandlers, fn) end
 function EasyUI:_registerWidget(widget) table.insert(self._widgets, widget) end
 
-function EasyUI:CreatePanel(title, width)
+function EasyUI:CreatePanel(title, width, maxHeight)
     local p = setmetatable({}, Panel)
-    p:_init(self, title, width or 226)
+    p:_init(self, title, width or 226, maxHeight)
     table.insert(self._panels, p)
     return p
+end
+
+function EasyUI:SetPanelMaxHeight(px)
+    self._config.PanelMaxHeight = px
 end
 
 function EasyUI:SetMenuKey(key) self._menuKey = key end
@@ -1735,7 +1790,6 @@ function EasyUI:_buildWatermark(enabled)
     corner(6, wm)
     stroke(theme.border, 1, 0.3, wm)
 
-    -- Glass effect on watermark
     local wmGlass = mk("Frame", {
         Size = UDim2.fromScale(1, 1),
         BackgroundColor3 = theme.white,
@@ -1768,7 +1822,6 @@ function EasyUI:_buildWatermark(enabled)
 
     mk("UIPadding", { PaddingRight = UDim.new(0, 10) }, wm)
 
-    -- Config gear button on watermark
     local configBtn = mk("TextButton", {
         Text = "⚙",
         Font = Enum.Font.Gotham,
@@ -1789,7 +1842,6 @@ function EasyUI:_buildWatermark(enabled)
     configBtn.MouseEnter:Connect(function() tween(configBtn, 0.12, { TextColor3 = theme.accent }) end)
     configBtn.MouseLeave:Connect(function() tween(configBtn, 0.12, { TextColor3 = theme.muted }) end)
 
-    -- Show config gear when hovering watermark
     wm.MouseEnter:Connect(function() configBtn.Visible = true end)
     wm.MouseLeave:Connect(function() configBtn.Visible = false end)
 
@@ -1797,19 +1849,84 @@ function EasyUI:_buildWatermark(enabled)
     self._watermarkLabel = label
     self._watermarkDot = dot
     self._configBtn = configBtn
-
-    RunService.RenderStepped:Connect(function()
-        if not self._alive or not wm.Visible then return end
-        dot.BackgroundColor3 = Color3.fromHSV((os.clock() * 0.12) % 1, 0.6, 1)
-    end)
 end
 
 function EasyUI:SetWatermarkVisible(visible)
     if self._watermark then self._watermark.Visible = visible end
 end
 
+-- Custom extra stats hook (kept for backwards compatibility) — return a
+-- table of {key = value} and they'll be appended after the built-in stats.
 function EasyUI:SetWatermarkStats(fn)
     self._watermarkFn = fn
+end
+
+-- ── Stat provider system (backend-customizable watermark) ───────────
+function EasyUI:_setupStats(options)
+    self._statProviders = {}
+    self._fps = 0
+    self._fpsAccum, self._fpsCount = 0, 0
+
+    -- Correct ping read (ms) — was previously wrong/unbounded
+    self._getPing = function()
+        local ok, item = pcall(function()
+            return StatsService.Network.ServerStatsItem["Data Ping"]:GetValue()
+        end)
+        if ok and item then return math.floor(item + 0.5) end
+        return 0
+    end
+
+    if options.ShowFPS ~= false then
+        self:AddWatermarkStat("fps", function() return self._fps end, {
+            Format = function(v) return v .. " fps" end,
+            Order = 1,
+        })
+    end
+    if options.ShowPing ~= false then
+        self:AddWatermarkStat("ping", self._getPing, {
+            Format = function(v) return v .. "ms" end,
+            Order = 2,
+        })
+    end
+    -- NOTE: memory stat intentionally removed
+end
+
+function EasyUI:AddWatermarkStat(key, getFn, opts)
+    opts = opts or {}
+    self:RemoveWatermarkStat(key)
+    table.insert(self._statProviders, {
+        key = key,
+        get = getFn,
+        format = opts.Format or function(v) return tostring(v) end,
+        enabled = opts.Enabled ~= false,
+        order = opts.Order or (#self._statProviders + 10),
+    })
+    table.sort(self._statProviders, function(a, b) return a.order < b.order end)
+end
+
+function EasyUI:RemoveWatermarkStat(key)
+    for i, s in ipairs(self._statProviders) do
+        if s.key == key then
+            table.remove(self._statProviders, i)
+            return
+        end
+    end
+end
+
+function EasyUI:SetWatermarkStatEnabled(key, enabled)
+    for _, s in ipairs(self._statProviders) do
+        if s.key == key then s.enabled = enabled end
+    end
+end
+
+function EasyUI:ConfigureWatermark(opts)
+    opts = opts or {}
+    if opts.Separator then self._config.Watermark.Separator = opts.Separator end
+    if opts.UpdateInterval then self._config.Watermark.UpdateInterval = opts.UpdateInterval end
+    if opts.Font and self._watermarkLabel then self._watermarkLabel.Font = opts.Font end
+    if opts.TextSize and self._watermarkLabel then self._watermarkLabel.TextSize = opts.TextSize end
+    if opts.TextColor and self._watermarkLabel then self._watermarkLabel.TextColor3 = opts.TextColor end
+    if opts.Enabled ~= nil then self:SetWatermarkVisible(opts.Enabled) end
 end
 
 -- ── Unload Button ────────────────────────────────────────
@@ -1850,10 +1967,8 @@ function EasyUI:_buildUnloadButton()
 
     self._unloadBtn = unloadBtn
 
-    -- Show/hide with root visibility
     local root = self._root
-    local conn
-    conn = root:GetPropertyChangedSignal("Visible"):Connect(function()
+    root:GetPropertyChangedSignal("Visible"):Connect(function()
         if self._unloadBtn then
             self._unloadBtn.Visible = root.Visible
         end
@@ -1865,47 +1980,102 @@ function EasyUI:SetUnloadButtonVisible(visible)
 end
 
 -- ── Custom Cursor ────────────────────────────────────────
+-- FIXED: previously used an invalid image path so only the big translucent
+-- glow frame behind it rendered (the "pink dot" bug). Now uses the real
+-- Roblox arrow cursor asset (the same one Mouse.Icon defaults to) with a
+-- proper dark outline layer, and no wobble/lag — tracks the mouse exactly
+-- like a real cursor.
 function EasyUI:_buildCustomCursor()
     local theme = self._theme
+    local cfg = self._config.Cursor
+    local size = cfg.Size or 20
+    local ARROW_ASSET = "rbxasset://textures/ArrowCursor.png"
 
-    local cursor = mk("ImageLabel", {
-        Size = UDim2.fromOffset(20, 20),
-        AnchorPoint = Vector2.new(0, 0),
+    local holder = mk("Frame", {
+        Size = UDim2.fromOffset(size, size),
         BackgroundTransparency = 1,
-        Image = "rbxasset://SystemCursors/Arrow",
-        ImageColor3 = theme.accent,
         Visible = false,
         ZIndex = 999999,
     }, self._gui)
 
-    local cursorGlow = mk("Frame", {
-        Size = UDim2.fromOffset(28, 28),
-        AnchorPoint = Vector2.new(0.5, 0.5),
-        Position = UDim2.fromScale(0.3, 0.3),
-        BackgroundColor3 = theme.accent,
-        BackgroundTransparency = 0.8,
-        BorderSizePixel = 0,
-        ZIndex = 999998,
-    }, cursor)
-    corner(14, cursorGlow)
+    local shadow = mk("ImageLabel", {
+        Image = ARROW_ASSET,
+        Size = UDim2.fromOffset(size, size),
+        Position = UDim2.fromOffset(1, 1),
+        BackgroundTransparency = 1,
+        ImageColor3 = cfg.OutlineColor or theme.black,
+        ImageTransparency = 0.25,
+        ZIndex = 999999,
+    }, holder)
 
-    self._cursor = cursor
-    self._cursorGlow = cursorGlow
+    local main = mk("ImageLabel", {
+        Image = ARROW_ASSET,
+        Size = UDim2.fromOffset(size, size),
+        BackgroundTransparency = 1,
+        ImageColor3 = cfg.Color or theme.text,
+        ZIndex = 1000000,
+    }, holder)
+
+    self._cursor = holder
+    self._cursorMain = main
+    self._cursorShadow = shadow
+
+    -- subtle click feedback, like a real OS cursor press animation
+    UserInputService.InputBegan:Connect(function(input)
+        if not self._alive then return end
+        if input.UserInputType == Enum.UserInputType.MouseButton1 and holder.Visible then
+            tween(holder, 0.08, { Size = UDim2.fromOffset(size * 0.88, size * 0.88) })
+        end
+    end)
+    UserInputService.InputEnded:Connect(function(input)
+        if not self._alive then return end
+        if input.UserInputType == Enum.UserInputType.MouseButton1 and holder.Visible then
+            tween(holder, 0.12, { Size = UDim2.fromOffset(size, size) }, Enum.EasingStyle.Back)
+        end
+    end)
 end
 
 function EasyUI:_updateCursor(visible)
-    if not self._cursorEnabled then return end
-    if self._cursor then
-        self._cursor.Visible = visible
-        if visible then
-            -- Hide default cursor
-            pcall(function()
-                UserInputService.MouseIconEnabled = false
-            end)
-        else
-            pcall(function()
-                UserInputService.MouseIconEnabled = true
-            end)
+    if not self._cursor then return end
+    if not self._cursorEnabled then
+        self._cursor.Visible = false
+        pcall(function() UserInputService.MouseIconEnabled = true end)
+        return
+    end
+    self._cursor.Visible = visible
+    pcall(function()
+        UserInputService.MouseIconEnabled = not visible
+    end)
+end
+
+-- Backend API to fully customize the cursor's look at runtime
+function EasyUI:SetCursorConfig(opts)
+    opts = opts or {}
+    local cfg = self._config.Cursor
+
+    if opts.Color then
+        cfg.Color = opts.Color
+        if self._cursorMain then self._cursorMain.ImageColor3 = opts.Color end
+    end
+    if opts.OutlineColor then
+        cfg.OutlineColor = opts.OutlineColor
+        if self._cursorShadow then self._cursorShadow.ImageColor3 = opts.OutlineColor end
+    end
+    if opts.Size then
+        cfg.Size = opts.Size
+        if self._cursor then
+            self._cursor.Size = UDim2.fromOffset(opts.Size, opts.Size)
+            self._cursorMain.Size = UDim2.fromOffset(opts.Size, opts.Size)
+            self._cursorShadow.Size = UDim2.fromOffset(opts.Size, opts.Size)
+        end
+    end
+    if opts.Enabled ~= nil then
+        cfg.Enabled = opts.Enabled
+        self._cursorEnabled = opts.Enabled
+        if not opts.Enabled then
+            self:_updateCursor(false)
+        elseif self._root.Visible then
+            self:_updateCursor(true)
         end
     end
 end
@@ -1922,9 +2092,10 @@ function EasyUI:_playGlassFlash()
     }, self._gui)
 
     tween(flash, 0.15, { BackgroundTransparency = 0.85 }, Enum.EasingStyle.Quad)
-    task.wait(0.15)
-    tween(flash, 0.35, { BackgroundTransparency = 1 }, Enum.EasingStyle.Quint)
-    task.delay(0.5, function() pcall(function() flash:Destroy() end) end)
+    task.delay(0.15, function()
+        tween(flash, 0.35, { BackgroundTransparency = 1 }, Enum.EasingStyle.Quint)
+        task.delay(0.4, function() pcall(function() flash:Destroy() end) end)
+    end)
 end
 
 -- ── Config Window ────────────────────────────────────────
@@ -1970,7 +2141,7 @@ function EasyUI:OpenConfig()
 
     panel:AddSeparator("Appearance")
 
-    local accentPicker = panel:AddColorPicker("Accent Color", self._theme.accent, function(color)
+    panel:AddColorPicker("Accent Color", self._theme.accent, function(color)
         self._theme.accent = color
         self._theme.accentDim = Color3.fromRGB(
             math.floor(color.R * 160),
@@ -1983,19 +2154,25 @@ function EasyUI:OpenConfig()
         self:SetWatermarkVisible(v)
     end)
 
+    panel:AddToggle("Show FPS", true, function(v)
+        self:SetWatermarkStatEnabled("fps", v)
+    end)
+
+    panel:AddToggle("Show Ping", true, function(v)
+        self:SetWatermarkStatEnabled("ping", v)
+    end)
+
     panel:AddToggle("Custom Cursor", self._cursorEnabled, function(v)
-        self._cursorEnabled = v
-        if not v and self._cursor then
-            self._cursor.Visible = false
-            pcall(function() UserInputService.MouseIconEnabled = true end)
-        elseif v and self._root.Visible then
-            self:_updateCursor(true)
-        end
+        self:SetCursorConfig({ Enabled = v })
+    end)
+
+    panel:AddSlider("Panel Scroll Height", 200, 700, self._config.PanelMaxHeight, 0, function(v)
+        self:SetPanelMaxHeight(v)
     end)
 
     panel:AddSeparator("Controls")
 
-    local keybindWidget = panel:AddKeybind("Menu Key", self._menuKey, function(newKey)
+    panel:AddKeybind("Menu Key", self._menuKey, function(newKey)
         if newKey then
             self._menuKey = newKey
             self:Toast("Keybind", "Menu key set to " .. newKey.Name, 1.5, "ok")
