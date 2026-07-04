@@ -6,6 +6,27 @@ local StatsService = game:GetService("Stats")
 local LocalPlayer = Players.LocalPlayer
 
 local Themes = {
+	Noir = {
+		panel = Color3.fromRGB(12, 12, 13),
+		header = Color3.fromRGB(18, 18, 20),
+		row = Color3.fromRGB(24, 24, 26),
+		rowAlt = Color3.fromRGB(32, 32, 35),
+		border = Color3.fromRGB(48, 48, 52),
+		borderBright = Color3.fromRGB(78, 78, 84),
+		accent = Color3.fromRGB(245, 245, 245),
+		accentDim = Color3.fromRGB(175, 175, 180),
+		text = Color3.fromRGB(246, 246, 248),
+		muted = Color3.fromRGB(165, 165, 172),
+		dim = Color3.fromRGB(105, 105, 112),
+		good = Color3.fromRGB(150, 230, 170),
+		bad = Color3.fromRGB(255, 110, 125),
+		warn = Color3.fromRGB(255, 210, 120),
+		black = Color3.new(0, 0, 0),
+		white = Color3.new(1, 1, 1),
+		panelTrans = 0.02,
+		rowTrans = 0,
+		strokeTrans = 0.22,
+	},
 	PinkMatte = {
 		panel = Color3.fromRGB(18, 18, 20),
 		header = Color3.fromRGB(25, 25, 28),
@@ -255,7 +276,7 @@ function Panel.new(ui, title, opts)
 	self._widgets = {}
 	self._maxHeight = opts.MaxHeight or ui.config.PanelMaxHeight
 	self._open = opts.Open ~= false
-	self._frameWidth = opts.Width or 250
+	self._frameWidth = opts.Width or 260
 
 	local width = self._frameWidth
 	local x, y = ui:_nextPanelPos(width)
@@ -263,8 +284,8 @@ function Panel.new(ui, title, opts)
 
 	local frame = mk("Frame", {
 		Name = "Panel",
-		Position = UDim2.fromOffset(x, y - 26),
-		Size = UDim2.new(0, width, 0, 32),
+		Position = UDim2.fromOffset(x, y - 18),
+		Size = UDim2.new(0, width, 0, 34),
 		AutomaticSize = Enum.AutomaticSize.None,
 		BackgroundColor3 = theme.panel,
 		BackgroundTransparency = 1,
@@ -275,30 +296,21 @@ function Panel.new(ui, title, opts)
 	corner(10, frame)
 	stroke(theme.border, 1, theme.strokeTrans, frame)
 
-	local glass = mk("Frame", {
-		Size = UDim2.fromScale(1, 1),
-		BackgroundColor3 = theme.white,
-		BackgroundTransparency = 0.94,
-		BorderSizePixel = 0,
-		ZIndex = 100009,
-	}, frame)
-	corner(10, glass)
-
 	local header = mk("Frame", {
-		Size = UDim2.new(1, 0, 0, 32),
+		Size = UDim2.new(1, 0, 0, 34),
 		Position = UDim2.new(0, 0, 0, 0),
 		BackgroundColor3 = theme.header,
-		BackgroundTransparency = 0.08,
+		BackgroundTransparency = 0.04,
 		BorderSizePixel = 0,
 		ZIndex = 100011,
 	}, frame)
 	corner(10, header)
 
-	mk("Frame", {
+	local headerFill = mk("Frame", {
 		Size = UDim2.new(1, 0, 0, 12),
 		Position = UDim2.new(0, 0, 1, -12),
 		BackgroundColor3 = theme.header,
-		BackgroundTransparency = 0.08,
+		BackgroundTransparency = 0.04,
 		BorderSizePixel = 0,
 		ZIndex = 100010,
 	}, header)
@@ -312,23 +324,14 @@ function Panel.new(ui, title, opts)
 	}, header)
 	corner(4, dot)
 
-	task.spawn(function()
-		while dot.Parent and ui._alive do
-			Anim.soft(dot, 1.15, { Size = UDim2.fromOffset(10, 10) })
-			task.wait(1.15)
-			Anim.soft(dot, 1.15, { Size = UDim2.fromOffset(8, 8) })
-			task.wait(1.15)
-		end
-	end)
-
 	local titleLabel = mk("TextLabel", {
 		Text = title,
 		Font = Enum.Font.GothamMedium,
 		TextSize = 13,
 		TextColor3 = theme.text,
 		BackgroundTransparency = 1,
-		Size = UDim2.new(1, -66, 1, 0),
-		Position = UDim2.new(0, 28, 0, 0),
+		Size = UDim2.new(1, -70, 1, 0),
+		Position = UDim2.new(0, 29, 0, 0),
 		TextXAlignment = Enum.TextXAlignment.Left,
 		TextTruncate = Enum.TextTruncate.AtEnd,
 		ZIndex = 100012,
@@ -336,25 +339,25 @@ function Panel.new(ui, title, opts)
 
 	local collapse = mk("TextButton", {
 		Text = self._open and "–" or "+",
-		Font = Enum.Font.GothamBold,
-		TextSize = 17,
+		Font = Enum.Font.GothamMedium,
+		TextSize = 18,
 		TextColor3 = theme.muted,
 		BackgroundTransparency = 1,
 		AutoButtonColor = false,
-		Size = UDim2.new(0, 32, 1, 0),
-		Position = UDim2.new(1, -34, 0, 0),
+		Size = UDim2.new(0, 34, 1, 0),
+		Position = UDim2.new(1, -36, 0, 0),
 		ZIndex = 100012,
 	}, header)
 
 	local bodyProps = {
 		Size = UDim2.new(1, 0, 0, 0),
-		Position = UDim2.new(0, 0, 0, 32),
+		Position = UDim2.new(0, 0, 0, 34),
 		BackgroundTransparency = 1,
 		BorderSizePixel = 0,
 		ScrollingDirection = Enum.ScrollingDirection.Y,
 		ScrollBarThickness = 3,
 		ScrollBarImageColor3 = theme.accent,
-		ScrollBarImageTransparency = 0.45,
+		ScrollBarImageTransparency = 0.35,
 		CanvasSize = UDim2.new(0, 0, 0, 0),
 		ClipsDescendants = true,
 		ZIndex = 100011,
@@ -368,7 +371,7 @@ function Panel.new(ui, title, opts)
 
 	local layout = mk("UIListLayout", {
 		SortOrder = Enum.SortOrder.LayoutOrder,
-		Padding = UDim.new(0, 4),
+		Padding = UDim.new(0, 5),
 	}, body)
 	padding(10, 12, 10, 10, body)
 
@@ -376,12 +379,10 @@ function Panel.new(ui, title, opts)
 		if not frame or not frame.Parent then return end
 
 		if not self._open then
-			Anim.soft(body, 0.2, { Size = UDim2.new(1, 0, 0, 0) })
-			Anim.soft(frame, 0.23, { Size = UDim2.new(0, width, 0, 32) })
-			task.delay(0.22, function()
-				if body and not self._open then
-					body.Visible = false
-				end
+			Anim.soft(body, 0.16, { Size = UDim2.new(1, 0, 0, 0) })
+			Anim.soft(frame, 0.18, { Size = UDim2.new(0, width, 0, 34) })
+			task.delay(0.17, function()
+				if body and not self._open then body.Visible = false end
 			end)
 			return
 		end
@@ -391,11 +392,11 @@ function Panel.new(ui, title, opts)
 		local contentH = layout.AbsoluteContentSize.Y + 24
 		local displayH = math.clamp(contentH, 0, self._maxHeight)
 
-		Anim.soft(body, 0.22, { Size = UDim2.new(1, 0, 0, displayH) })
-		Anim.soft(frame, 0.22, { Size = UDim2.new(0, width, 0, 32 + displayH) })
+		Anim.soft(body, 0.2, { Size = UDim2.new(1, 0, 0, displayH) })
+		Anim.soft(frame, 0.2, { Size = UDim2.new(0, width, 0, 34 + displayH) })
 
 		if not hasAutoCanvas then
-			body.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + 10)
+			body.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + 12)
 		end
 	end
 
@@ -404,6 +405,7 @@ function Panel.new(ui, title, opts)
 	self.frame = frame
 	self.body = body
 	self.header = header
+	self.headerFill = headerFill
 	self.titleLabel = titleLabel
 	self._refreshHeight = refreshHeight
 
@@ -428,9 +430,9 @@ function Panel.new(ui, title, opts)
 	task.delay(0.08, refreshHeight)
 	task.delay(0.18, refreshHeight)
 
-	Anim.soft(frame, 0.38, {
+	Anim.soft(frame, 0.24, {
 		Position = UDim2.fromOffset(x, y),
-		BackgroundTransparency = theme.panelTrans + 0.1,
+		BackgroundTransparency = theme.panelTrans,
 	})
 
 	return self
@@ -471,7 +473,7 @@ end
 function PanelMethods:Row(height)
 	local theme = self.theme
 	local row = mk("Frame", {
-		Size = UDim2.new(1, 0, 0, height or 28),
+		Size = UDim2.new(1, 0, 0, height or 30),
 		BackgroundColor3 = theme.row,
 		BackgroundTransparency = 1,
 		BorderSizePixel = 0,
@@ -479,7 +481,7 @@ function PanelMethods:Row(height)
 	}, self.body)
 	corner(7, row)
 	row.MouseEnter:Connect(function()
-		Anim.soft(row, 0.12, { BackgroundTransparency = 0.5 })
+		Anim.soft(row, 0.12, { BackgroundTransparency = 0.42 })
 	end)
 	row.MouseLeave:Connect(function()
 		Anim.soft(row, 0.15, { BackgroundTransparency = 1 })
@@ -509,11 +511,11 @@ function PanelMethods:SetVisible(v)
 	local theme = self.theme
 	if v then
 		self.frame.Visible = true
-		Anim.soft(self.frame, 0.24, { BackgroundTransparency = theme.panelTrans + 0.1 })
+		Anim.soft(self.frame, 0.18, { BackgroundTransparency = theme.panelTrans })
 		if self._refreshHeight then self._refreshHeight() end
 	else
-		Anim.soft(self.frame, 0.18, { BackgroundTransparency = 1 })
-		task.delay(0.2, function()
+		Anim.soft(self.frame, 0.16, { BackgroundTransparency = 1 })
+		task.delay(0.17, function()
 			if self.frame then self.frame.Visible = false end
 		end)
 	end
@@ -552,7 +554,7 @@ function PanelMethods:Destroy()
 	end)
 end
 
-Panel.__index = function(tbl, key)
+Panel.__index = function(_, key)
 	local direct = PanelMethods[key]
 	if direct then return direct end
 
@@ -569,7 +571,7 @@ Panel.__index = function(tbl, key)
 	return nil
 end
 
-WidgetRegistry.Label = function(panel, ctx, text)
+WidgetRegistry.Label = function(_, ctx, text)
 	local theme = ctx.theme
 	local lbl = ctx.mk("TextLabel", {
 		Text = text or "",
@@ -599,7 +601,7 @@ WidgetRegistry.Label = function(panel, ctx, text)
 	return ctx.register(w)
 end
 
-WidgetRegistry.Separator = function(panel, ctx, label)
+WidgetRegistry.Separator = function(_, ctx, label)
 	local theme = ctx.theme
 	local row = ctx.mk("Frame", {
 		Size = UDim2.new(1, 0, 0, 20),
@@ -631,7 +633,7 @@ WidgetRegistry.Separator = function(panel, ctx, label)
 	return ctx.register({ type = "label", value = label or "" })
 end
 
-WidgetRegistry.Toggle = function(panel, ctx, label, default, callback)
+WidgetRegistry.Toggle = function(_, ctx, label, default, callback)
 	local theme = ctx.theme
 	local row = ctx.row(30)
 	ctx.padding(0, 0, 10, 8, row)
@@ -757,7 +759,7 @@ WidgetRegistry.Toggle = function(panel, ctx, label, default, callback)
 	return ctx.register(widget)
 end
 
-WidgetRegistry.Slider = function(panel, ctx, label, min, max, default, rounding, callback)
+WidgetRegistry.Slider = function(_, ctx, label, min, max, default, rounding, callback)
 	local theme = ctx.theme
 	min = min or 0
 	max = max or 100
@@ -900,7 +902,7 @@ WidgetRegistry.Slider = function(panel, ctx, label, min, max, default, rounding,
 	return ctx.register(widget)
 end
 
-WidgetRegistry.ModeToggle = function(panel, ctx, label, modes, defaultIndex, callback)
+WidgetRegistry.ModeToggle = function(_, ctx, label, modes, defaultIndex, callback)
 	local theme = ctx.theme
 	modes = modes or {}
 	defaultIndex = defaultIndex or 1
@@ -994,7 +996,7 @@ WidgetRegistry.ModeToggle = function(panel, ctx, label, modes, defaultIndex, cal
 	return ctx.register(widget)
 end
 
-WidgetRegistry.Dropdown = function(panel, ctx, label, options, default, callback)
+WidgetRegistry.Dropdown = function(_, ctx, label, options, default, callback)
 	local theme = ctx.theme
 	options = options or {}
 	default = default or options[1] or ""
@@ -1178,7 +1180,7 @@ WidgetRegistry.Dropdown = function(panel, ctx, label, options, default, callback
 	return ctx.register(widget)
 end
 
-WidgetRegistry.Button = function(panel, ctx, label, callback, danger)
+WidgetRegistry.Button = function(_, ctx, label, callback, danger)
 	local theme = ctx.theme
 	local color = danger and theme.bad or theme.accent
 
@@ -1238,7 +1240,7 @@ WidgetRegistry.Button = function(panel, ctx, label, callback, danger)
 	return ctx.register(widget)
 end
 
-WidgetRegistry.Keybind = function(panel, ctx, label, defaultKey, callback)
+WidgetRegistry.Keybind = function(_, ctx, label, defaultKey, callback)
 	local theme = ctx.theme
 	local row = ctx.row(30)
 	ctx.padding(0, 0, 10, 8, row)
@@ -1322,7 +1324,7 @@ WidgetRegistry.Keybind = function(panel, ctx, label, defaultKey, callback)
 	return ctx.register(widget)
 end
 
-WidgetRegistry.TextBox = function(panel, ctx, label, default, placeholder, callback)
+WidgetRegistry.TextBox = function(_, ctx, label, default, placeholder, callback)
 	local theme = ctx.theme
 	local hasLabel = label and label ~= ""
 	local row = ctx.row(hasLabel and 34 or 28)
@@ -1391,7 +1393,7 @@ WidgetRegistry.TextBox = function(panel, ctx, label, default, placeholder, callb
 	return ctx.register(widget)
 end
 
-WidgetRegistry.ProgressBar = function(panel, ctx, label, initial, callback)
+WidgetRegistry.ProgressBar = function(_, ctx, label, initial, callback)
 	local theme = ctx.theme
 	local row = ctx.row(34)
 	ctx.padding(5, 5, 10, 10, row)
@@ -1463,7 +1465,7 @@ WidgetRegistry.ProgressBar = function(panel, ctx, label, initial, callback)
 	return ctx.register(widget)
 end
 
-WidgetRegistry.ColorPicker = function(panel, ctx, label, defaultColor, callback)
+WidgetRegistry.ColorPicker = function(_, ctx, label, defaultColor, callback)
 	local theme = ctx.theme
 	defaultColor = defaultColor or theme.white
 
@@ -1645,9 +1647,7 @@ WidgetRegistry.ColorPicker = function(panel, ctx, label, defaultColor, callback)
 	end)
 
 	grid.InputEnded:Connect(function(input)
-		if isClick(input) then
-			dragGrid = false
-		end
+		if isClick(input) then dragGrid = false end
 	end)
 
 	hueBar.InputBegan:Connect(function(input)
@@ -1658,9 +1658,7 @@ WidgetRegistry.ColorPicker = function(panel, ctx, label, defaultColor, callback)
 	end)
 
 	hueBar.InputEnded:Connect(function(input)
-		if isClick(input) then
-			dragHue = false
-		end
+		if isClick(input) then dragHue = false end
 	end)
 
 	ctx.trackInput(function(input)
@@ -1684,8 +1682,8 @@ WidgetRegistry.ColorPicker = function(panel, ctx, label, defaultColor, callback)
 		if picker.Visible then
 			setPickerPosition()
 			local p = picker.Position
-			picker.Position = UDim2.fromOffset(p.X.Offset, p.Y.Offset - 10)
-			Anim.smooth(picker, 0.18, { Position = p })
+			picker.Position = UDim2.fromOffset(p.X.Offset, p.Y.Offset - 8)
+			Anim.smooth(picker, 0.16, { Position = p })
 		end
 	end)
 
@@ -1732,13 +1730,13 @@ end
 local EasyUI = {}
 EasyUI.__index = EasyUI
 EasyUI.Anim = Anim
-EasyUI.Version = "3.0.0"
+EasyUI.Version = "3.1.0"
 
 local activeInstances = {}
 
 EasyUI.Defaults = {
 	PanelMaxHeight = 420,
-	CursorSize = 34,
+	CursorSize = 36,
 	WatermarkSeparator = "  •  ",
 	WatermarkUpdateInterval = 0.5,
 }
@@ -1747,8 +1745,8 @@ function EasyUI.new(options)
 	options = options or {}
 	local self = setmetatable({}, EasyUI)
 
-	local themeName = options.Theme or "PinkMatte"
-	local theme = Themes[themeName] or Themes.PinkMatte
+	local themeName = options.Theme or "Noir"
+	local theme = Themes[themeName] or Themes.Noir
 	local resolved = {}
 	for k, v in pairs(theme) do resolved[k] = v end
 
@@ -1776,8 +1774,9 @@ function EasyUI.new(options)
 	self._alive = true
 	self._visible = false
 	self._nextX = options.StartX or 16
-	self._nextY = options.StartY or 52
+	self._nextY = options.StartY or 54
 	self._configOpen = false
+	self._dragTweens = {}
 
 	local cur = options.Cursor or {}
 	local wm = options.WatermarkConfig or {}
@@ -1790,6 +1789,7 @@ function EasyUI.new(options)
 			OutlineColor = cur.OutlineColor or resolved.black,
 			Size = cur.Size or EasyUI.Defaults.CursorSize,
 			AlwaysVisible = cur.AlwaysVisible == true,
+			Hotspot = cur.Hotspot or Vector2.new(0, 0),
 		},
 		Watermark = {
 			Separator = wm.Separator or EasyUI.Defaults.WatermarkSeparator,
@@ -1825,7 +1825,7 @@ function EasyUI.new(options)
 
 	local root = mk("Frame", {
 		Size = UDim2.fromScale(1, 1),
-		Position = UDim2.fromOffset(0, -20),
+		Position = UDim2.fromOffset(0, -12),
 		BackgroundTransparency = 1,
 		BorderSizePixel = 0,
 		Visible = false,
@@ -1879,11 +1879,15 @@ function EasyUI.new(options)
 
 		if self._cursor and self._cursor.Visible then
 			local m = UserInputService:GetMouseLocation()
-			self._cursor.Position = UDim2.fromOffset(m.X, m.Y)
+			local h = self.config.Cursor.Hotspot or Vector2.new(0, 0)
+			self._cursor.Position = UDim2.fromOffset(m.X - h.X, m.Y - h.Y)
+			if self._cursorEnabled then
+				pcall(function() UserInputService.MouseIconEnabled = false end)
+			end
 		end
 
 		if self._watermarkDot and self._watermark and self._watermark.Visible then
-			self._watermarkDot.BackgroundColor3 = Color3.fromHSV((os.clock() * 0.12) % 1, 0.55, 1)
+			self._watermarkDot.BackgroundColor3 = self.theme.accent
 		end
 
 		if self._watermarkLabel and self._watermark and self._watermark.Visible then
@@ -1920,24 +1924,28 @@ function EasyUI:_makeDraggable(handle, frame)
 	local dragging = false
 	local dragStart
 	local startPos
+	local activeTween
 
 	handle.InputBegan:Connect(function(input)
 		if isClick(input) then
 			dragging = true
 			dragStart = input.Position
 			startPos = frame.Position
+			if activeTween then activeTween:Cancel() end
 		end
 	end)
 
 	UserInputService.InputChanged:Connect(function(input)
 		if dragging and isMove(input) then
 			local d = input.Position - dragStart
-			frame.Position = UDim2.new(
+			local target = UDim2.new(
 				startPos.X.Scale,
 				startPos.X.Offset + d.X,
 				startPos.Y.Scale,
 				startPos.Y.Offset + d.Y
 			)
+			if activeTween then activeTween:Cancel() end
+			activeTween = Anim.to(frame, 0.055, { Position = target }, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
 		end
 	end)
 
@@ -2029,14 +2037,13 @@ function EasyUI:SetVisible(v)
 
 	if v then
 		self.root.Visible = true
-		self.root.Position = UDim2.fromOffset(0, -22)
-		Anim.smooth(self.root, 0.34, { Position = UDim2.fromOffset(0, 0) })
+		self.root.Position = UDim2.fromOffset(0, -12)
+		Anim.smooth(self.root, 0.24, { Position = UDim2.fromOffset(0, 0) })
 		self:_updateCursor(true)
-		self:_flash()
 	else
-		Anim.smooth(self.root, 0.24, { Position = UDim2.fromOffset(0, -22) })
+		Anim.smooth(self.root, 0.18, { Position = UDim2.fromOffset(0, -12) })
 		self:_updateCursor(false)
-		task.delay(0.25, function()
+		task.delay(0.19, function()
 			if self.root and not self._visible then
 				self.root.Visible = false
 			end
@@ -2056,29 +2063,19 @@ function EasyUI:_buildWatermark(enabled)
 	local theme = self.theme
 
 	local wm = mk("Frame", {
-		Size = UDim2.new(0, 0, 0, 26),
-		AutomaticSize = Enum.AutomaticSize.X,
+		Size = UDim2.fromOffset(160, 30),
 		Position = UDim2.new(0, 14, 0, 12),
 		BackgroundColor3 = theme.panel,
-		BackgroundTransparency = 0.08,
+		BackgroundTransparency = 0.04,
 		Visible = enabled,
 		ZIndex = 180000,
 	}, self.gui)
-	corner(6, wm)
-	stroke(theme.border, 1, 0.3, wm)
-
-	local glass = mk("Frame", {
-		Size = UDim2.fromScale(1, 1),
-		BackgroundColor3 = theme.white,
-		BackgroundTransparency = 0.93,
-		BorderSizePixel = 0,
-		ZIndex = 180000,
-	}, wm)
-	corner(6, glass)
+	corner(7, wm)
+	stroke(theme.border, 1, 0.25, wm)
 
 	local dot = mk("Frame", {
 		Size = UDim2.fromOffset(8, 8),
-		Position = UDim2.new(0, 8, 0.5, -4),
+		Position = UDim2.new(0, 10, 0.5, -4),
 		BackgroundColor3 = theme.accent,
 		BorderSizePixel = 0,
 		ZIndex = 180001,
@@ -2091,15 +2088,11 @@ function EasyUI:_buildWatermark(enabled)
 		TextSize = 11,
 		TextColor3 = theme.text,
 		BackgroundTransparency = 1,
-		AutomaticSize = Enum.AutomaticSize.X,
-		Size = UDim2.new(0, 0, 1, 0),
-		Position = UDim2.new(0, 22, 0, 0),
+		Size = UDim2.new(1, -38, 1, 0),
+		Position = UDim2.new(0, 26, 0, 0),
 		TextXAlignment = Enum.TextXAlignment.Left,
+		TextTruncate = Enum.TextTruncate.AtEnd,
 		ZIndex = 180001,
-	}, wm)
-
-	mk("UIPadding", {
-		PaddingRight = UDim.new(0, 10),
 	}, wm)
 
 	local gear = mk("TextButton", {
@@ -2109,8 +2102,8 @@ function EasyUI:_buildWatermark(enabled)
 		TextColor3 = theme.muted,
 		BackgroundTransparency = 1,
 		AutoButtonColor = false,
-		Size = UDim2.fromOffset(20, 26),
-		Position = UDim2.new(0, -24, 0, 0),
+		Size = UDim2.fromOffset(22, 30),
+		Position = UDim2.new(1, -24, 0, 0),
 		Visible = false,
 		ZIndex = 180002,
 	}, wm)
@@ -2138,6 +2131,7 @@ function EasyUI:_buildWatermark(enabled)
 	self._watermark = wm
 	self._watermarkLabel = label
 	self._watermarkDot = dot
+	self._watermarkGear = gear
 end
 
 function EasyUI:_refreshWatermark()
@@ -2162,7 +2156,14 @@ function EasyUI:_refreshWatermark()
 		end
 	end
 
-	self._watermarkLabel.Text = table.concat(parts, self.config.Watermark.Separator)
+	local text = table.concat(parts, self.config.Watermark.Separator)
+	self._watermarkLabel.Text = text
+	task.defer(function()
+		if self._watermark and self._watermarkLabel then
+			local w = math.clamp(self._watermarkLabel.TextBounds.X + 58, 150, 720)
+			self._watermark.Size = UDim2.fromOffset(w, 30)
+		end
+	end)
 end
 
 function EasyUI:_setupStats(options)
@@ -2252,11 +2253,11 @@ function EasyUI:_buildUnloadButton()
 
 	local b = mk("TextButton", {
 		Text = "✕",
-		Font = Enum.Font.GothamBold,
+		Font = Enum.Font.GothamMedium,
 		TextSize = 14,
 		TextColor3 = theme.muted,
 		BackgroundColor3 = theme.panel,
-		BackgroundTransparency = 0.08,
+		BackgroundTransparency = 0.04,
 		AutoButtonColor = false,
 		Size = UDim2.fromOffset(30, 30),
 		Position = UDim2.new(1, -45, 0, 14),
@@ -2264,7 +2265,7 @@ function EasyUI:_buildUnloadButton()
 		ZIndex = 190000,
 	}, self.gui)
 	corner(15, b)
-	local s = stroke(theme.border, 1, 0.3, b)
+	local s = stroke(theme.border, 1, 0.25, b)
 
 	b.MouseButton1Click:Connect(function()
 		self:Toast("EasyUI", "Unloading...", 1.5, "warn")
@@ -2279,7 +2280,7 @@ function EasyUI:_buildUnloadButton()
 	end)
 
 	b.MouseLeave:Connect(function()
-		Anim.soft(b, 0.15, { TextColor3 = theme.muted, BackgroundTransparency = 0.08 })
+		Anim.soft(b, 0.15, { TextColor3 = theme.muted, BackgroundTransparency = 0.04 })
 		Anim.soft(s, 0.15, { Color = theme.border })
 	end)
 
@@ -2318,7 +2319,7 @@ function EasyUI:_buildCursor()
 		Position = UDim2.fromOffset(1, 1),
 		BackgroundTransparency = 1,
 		ImageColor3 = cfg.OutlineColor,
-		ImageTransparency = 0.18,
+		ImageTransparency = 0.12,
 		Active = false,
 		Selectable = false,
 		ZIndex = 999999,
@@ -2341,14 +2342,14 @@ function EasyUI:_buildCursor()
 	UserInputService.InputBegan:Connect(function(input)
 		if self._alive and isClick(input) and holder.Visible then
 			local s = self.config.Cursor.Size
-			Anim.soft(holder, 0.06, { Size = UDim2.fromOffset(s * 0.86, s * 0.86) })
+			Anim.soft(holder, 0.05, { Size = UDim2.fromOffset(s * 0.86, s * 0.86) })
 		end
 	end)
 
 	UserInputService.InputEnded:Connect(function(input)
 		if self._alive and isClick(input) and holder.Visible then
 			local s = self.config.Cursor.Size
-			Anim.spring(holder, 0.14, { Size = UDim2.fromOffset(s, s) })
+			Anim.spring(holder, 0.12, { Size = UDim2.fromOffset(s, s) })
 		end
 	end)
 end
@@ -2393,6 +2394,10 @@ function EasyUI:SetCursorConfig(o)
 		end
 	end
 
+	if o.Hotspot then
+		cfg.Hotspot = o.Hotspot
+	end
+
 	if o.AlwaysVisible ~= nil then
 		cfg.AlwaysVisible = o.AlwaysVisible and true or false
 	end
@@ -2403,24 +2408,6 @@ function EasyUI:SetCursorConfig(o)
 	end
 
 	self:_updateCursor(self._visible)
-end
-
-function EasyUI:_flash()
-	local flash = mk("Frame", {
-		Size = UDim2.fromScale(1, 1),
-		BackgroundColor3 = self.theme.white,
-		BackgroundTransparency = 1,
-		BorderSizePixel = 0,
-		ZIndex = 999990,
-	}, self.gui)
-
-	Anim.to(flash, 0.12, { BackgroundTransparency = 0.88 }, Enum.EasingStyle.Quad)
-	task.delay(0.12, function()
-		Anim.smooth(flash, 0.35, { BackgroundTransparency = 1 })
-		task.delay(0.4, function()
-			pcall(function() flash:Destroy() end)
-		end)
-	end)
 end
 
 function EasyUI:_buildToasts()
@@ -2456,13 +2443,13 @@ function EasyUI:Toast(title, msg, duration, kind)
 		Size = UDim2.new(1, 60, 0, 56),
 		Position = UDim2.new(1, 60, 0, 0),
 		BackgroundColor3 = theme.panel,
-		BackgroundTransparency = 0.05,
+		BackgroundTransparency = 0.04,
 		LayoutOrder = self._toastOrder,
 		ZIndex = 200000,
 		ClipsDescendants = true,
 	}, self._toastHolder)
 	corner(8, toast)
-	stroke(theme.border, 1, 0.2, toast)
+	stroke(theme.border, 1, 0.18, toast)
 
 	local bar = mk("Frame", {
 		Size = UDim2.new(0, 3, 1, -12),
@@ -2507,7 +2494,7 @@ function EasyUI:Toast(title, msg, duration, kind)
 		ZIndex = 200003,
 	}, toast)
 
-	Anim.spring(toast, 0.34, {
+	Anim.spring(toast, 0.28, {
 		Position = UDim2.new(0, 0, 0, 0),
 		Size = UDim2.new(1, 0, 0, 56),
 	})
@@ -2515,11 +2502,11 @@ function EasyUI:Toast(title, msg, duration, kind)
 
 	task.delay(duration, function()
 		if not self._alive then return end
-		Anim.smooth(toast, 0.28, {
+		Anim.smooth(toast, 0.22, {
 			Position = UDim2.new(1, 60, 0, 0),
 			BackgroundTransparency = 1,
 		})
-		task.delay(0.32, function()
+		task.delay(0.25, function()
 			pcall(function() toast:Destroy() end)
 		end)
 	end)
@@ -2538,7 +2525,7 @@ function EasyUI:OpenConfig()
 		return
 	end
 
-	local p = self:CreatePanel("Settings", { Width = 250, Open = true })
+	local p = self:CreatePanel("Settings", { Width = 260, Open = true })
 	self._configPanel = p
 
 	p:AddSeparator("Appearance")
@@ -2567,7 +2554,7 @@ function EasyUI:OpenConfig()
 		self:SetCursorConfig({ Enabled = v })
 	end)
 
-	p:AddSlider("Cursor Size", 18, 50, self.config.Cursor.Size, 0, function(v)
+	p:AddSlider("Cursor Size", 18, 56, self.config.Cursor.Size, 0, function(v)
 		self:SetCursorConfig({ Size = v })
 	end)
 
